@@ -11,8 +11,8 @@ CODE CHANGES required in default.toml file:
   4) in default.toml file: change port name to that new connected device name (line 28 with comment "CHANGE THIS!")
 
   connecting the cam:
-  5) connect camera to computer via USBA cable (warning: using dongle/adapter sometimes doesn't work!)
-  6) in default.toml file: try changing camera index if camera isn't connected / wrong camera connected (line 11 with comment "CHANGE THIS!")
+  1) connect camera to computer via USBA cable (warning: using dongle/adapter sometimes doesn't work!)
+  2) in default.toml file: try changing camera index if camera isn't connected / wrong camera connected (line 11 with comment "CHANGE THIS!")
   
   (remember to save changes to your own local default.toml before running actual script)
   
