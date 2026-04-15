@@ -7,7 +7,7 @@ CODE CHANGES required in default.toml file:
   connecting the motor:
   1) run "ls/dev/tty.*" in your terminal to show all connected device names (for Mac)
   2) connect computer to SKR PICO board via usbc (CANNOT USE DONGLE OR CONNECTION WON'T SHOW UP)
-  3) run "ls/dev/tty.*" again and notice a new connected device show up like "/dev/tty.usbmodem3101": copy this!
+  3) run "ls/dev/tty.*" again and notice a new connected device show up (something like "/dev/tty.usbmodem3101"): copy this name!
   4) in default.toml file: change port name to that new connected device name (line 28 with comment "CHANGE THIS!")
 
   connecting the cam:
