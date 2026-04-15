@@ -25,7 +25,7 @@ enabled = true #NEW NEW NEW; set enabled to true in other part of file too
 homing = false
 # Select the correct serial port for the device running GRBL.
 # The correct serial port can be checked with Device Manager on Windows.
-port = "/dev/tty.usbmodem3101" #NEW NEW NEW; from new connection after connecting board to computer and running ls /dev/tty.* in terminal
+port = "/dev/tty.usbmodem3101" #CHANGE THIS; from new connection after connecting board to computer and running ls /dev/tty.* in terminal
 
 # GRBL's baud rate is almost always 115200, do not change this value
 baud-rate = 115200
