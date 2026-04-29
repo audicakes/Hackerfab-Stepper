@@ -17,4 +17,5 @@ CODE CHANGES required in default.toml file:
   (remember to save changes to your own local default.toml before running actual script)
   
 RUNNING PYTHON SCRIPT: gui.py (located in src directory): connect computer to board & USB cam in setup
-  1) pop-up will ask you to select a config file: select default.toml
+  1) install required dependencies that will pop up if there's errors running the code, like pip install stuff or smtg. has to do with setting up virtual environment .venv I think.
+  2) pop-up will ask you to select a config file: select default.toml
