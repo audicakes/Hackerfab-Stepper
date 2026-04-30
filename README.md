@@ -19,3 +19,4 @@ CODE CHANGES required in default.toml file:
 RUNNING PYTHON SCRIPT: gui.py (located in src directory): connect computer to board & USB cam in setup
   1) install required dependencies that will pop up if there's errors running the code, like pip install stuff or smtg. has to do with setting up virtual environment .venv I think. this installation guide does better job describing this part, smtg like pip install -r requirements.txt: https://docs.google.com/document/d/1YfTg02TKQj3yyqTUPdaRIhkUvofh5QlHqMsbmtyFL4I/edit?tab=t.0
   2) pop-up will ask you to select a config file: select default.toml
+  3) follow pop-up instruction about dragging projector view window to another monitor screen? idk couldn't figure it out on Mac but camera should just be a USBA plug-and-play on windows at least
