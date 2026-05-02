@@ -1,7 +1,6 @@
 import json
 import os
 import queue
-import shutil
 import time
 import toml
 
@@ -1084,20 +1083,9 @@ class StagePositionFrame:
                 fill=colors[i], outline='#2c3e50', width=2
             )
         
-        # Draw cross lines to divide into quadrants
-        cx, cy = center, center
-        half_L = canvas_size / 2
-
-        for angle_deg, color in [(-45, "#2c3e50"), (45, "#2c3e50")]:
-            angle_rad = math.radians(angle_deg)
-
-            # Adjust for Tkinter’s downward Y-axis
-            x0 = cx - half_L * math.sin(angle_rad)
-            y0 = cy - half_L * math.cos(angle_rad)
-            x1 = cx + half_L * math.sin(angle_rad)
-            y1 = cy + half_L * math.cos(angle_rad)
-
-            self.xy_canvas.create_line(x0, y0, x1, y1, fill=color, width=3)
+        # Cardinal crosshairs match the click logic: top=+Y, bottom=-Y, right=+X, left=-X
+        self.xy_canvas.create_line(center, 0, center, canvas_size, fill="#2c3e50", width=2)
+        self.xy_canvas.create_line(0, center, canvas_size, center, fill="#2c3e50", width=2)
         
         # Labels for directions
         label_offset = 160
@@ -1183,52 +1171,53 @@ class StagePositionFrame:
         colors_plus = ['#a8dadc', '#87bdbf', '#66a0a3', '#458486']
         colors_minus = ['#458486', '#66a0a3', '#87bdbf', '#a8dadc']
         
-        # Store rectangle IDs and their original colors
-        self.z_rectangles = []  # List of (rect_id, original_color)
+        # Store rectangle IDs/colors for lock-state recoloring
+        self.z_rectangles = []   # List of (rect_id, original_color)
+        # Store (direction, step_size) per section for the click handler
+        self._z_sections = []
+        self._z_section_height = section_height
 
-        # Create sections
         for i in range(8):
             y_start = i * section_height
             y_end = (i + 1) * section_height
-            
+
             if i < 4:
-                # Top half: +Z movement
                 color = colors_plus[i]
                 step = step_sizes[3 - i]
                 label = f"+Z\n{step}"
                 direction = "+"
             else:
-                # Bottom half: -Z movement
                 color = colors_minus[i - 4]
                 step = step_sizes[i - 4]
                 label = f"-Z\n{step}"
                 direction = "-"
-            
-            # Draw rectangle
+
+            self._z_sections.append((direction, step))
+
             rect_id = self.z_canvas.create_rectangle(
                 0, y_start, bar_width, y_end,
                 fill=color, outline='#2c3e50', width=2
             )
             self.z_rectangles.append((rect_id, color))
-            
-            # Draw label
-            text_id = self.z_canvas.create_text(
+
+            self.z_canvas.create_text(
                 bar_width // 2, (y_start + y_end) // 2,
                 text=label, fill='#1a1a1a', font=('Arial', 10, 'bold')
             )
-            
-            # Bind click events
-            for item_id in [rect_id, text_id]:
-                self.z_canvas.tag_bind(
-                    item_id, '<Button-1>',
-                    lambda e, d=direction, s=step: self._on_z_click(d, s)
-                )
-        
-        # Add label at top
+
+        # One canvas-level binding avoids double-firing when the click lands on a text item
+        self.z_canvas.bind('<Button-1>', self._on_z_canvas_click)
+
         ttk.Label(parent, text="Z Control", font=('Arial', 10, 'bold')).pack(pady=(0, 5))
 
+    def _on_z_canvas_click(self, event):
+        """Single canvas binding; determines which section was clicked by Y coordinate."""
+        section = event.y // self._z_section_height
+        if 0 <= section < len(self._z_sections):
+            direction, step_size = self._z_sections[section]
+            self._on_z_click(direction, step_size)
+
     def _on_z_click(self, direction, step_size):
-        """Handle clicks on Z control sections"""
         if not self.zlock:
             if direction == "+":
                 self.event_dispatcher.move_relative({"z": step_size})
@@ -2967,6 +2956,22 @@ class LithographerGui:
         self.top_panel.grid_columnconfigure(1, weight=1)
         self.top_panel.grid_columnconfigure(2, weight=1)
 
+        # Projector setup reminder – dismissible banner, not a blocking popup
+        _banner = ttk.Frame(self.top_panel, relief="groove", padding=(8, 4))
+        _banner.grid(row=1, column=0, columnspan=3, sticky="ew", padx=5, pady=(0, 4))
+        ttk.Label(
+            _banner,
+            text=(
+                "⚠  Move the projector window to the DLP display before starting.  "
+                "Click the fullscreen black window, then press Win+Shift+← "
+                "until it is no longer visible."
+            ),
+            foreground="#8B4513",
+            wraplength=900,
+        ).pack(side="left", fill="x", expand=True)
+        ttk.Button(_banner, text="Dismiss",
+                   command=_banner.destroy).pack(side="right", padx=(8, 0))
+
         # Progress bar
         self.pattern_progress = Progressbar(self.root, orient="horizontal", mode="determinate")
         self.pattern_progress.grid(row=1, column=0, sticky="ew")
@@ -3002,128 +3007,244 @@ class LithographerGui:
         self.root.protocol("WM_DELETE_WINDOW", lambda: self.cleanup())
         # self.debug.info("Debug info will appear here")
 
-        # Things that have to after the main loop begins
         def on_start():
             self.camera.start()
-            self.event_dispatcher.enter_red_mode(mode_switch_autofocus=False) # ensure exposure settings are correctly set
+            self.event_dispatcher.enter_red_mode(mode_switch_autofocus=False)
             if self.event_dispatcher.hardware.stage.has_homing():
                 self.event_dispatcher.home_stage()
-                #self.event_dispatcher.move_relative({"x": 5000.0, "y": 3500.0, "z": 1900.0})
-            messagebox.showinfo(
-                message="BEFORE CONTINUING: Ensure that you move the projector window to the correct display! Click on the fullscreen, completely black window, then press Windows Key + Shift + Left Arrow until it no longer is visible!"
-            )
 
         self.root.after(0, on_start)
     
 
     def cleanup(self):
-        print("Patterning GUI closed.")
-        print("TODO: Cleanup")
         self.root.destroy()
         self.camera.cleanup()
-        # if RUN_WITH_STAGE:
-        # serial_port.close()
+        self.event_dispatcher.hardware.stage.close()
+
+
+class _StartupDialog:
+    """Pre-launch dialog: config file selection + GRBL board detection.
+
+    Runs its own Tk() event loop.  On a successful launch, self.config and
+    self.selected_port are populated before the window is destroyed.
+    """
+
+    _GRBL_VIDS = {
+        0x2341,  # Arduino LLC
+        0x2A03,  # Arduino.org
+        0x239A,  # Adafruit
+        0x1B4F,  # SparkFun
+        0x1A86,  # CH340 (ubiquitous clone chip)
+        0x0403,  # FTDI
+        0x10C4,  # Silicon Labs CP210x
+        0x067B,  # Prolific PL2303
+    }
+
+    def __init__(self):
+        self.win = tkinter.Tk()
+        self.win.title("HackerFab Stepper")
+        self.win.resizable(False, False)
+
+        self.config: dict = {}
+        self.selected_port: Optional[str] = None   # None → no stage
+        self.launched: bool = False
+        self._port_devices: list[str] = []
+
+        self._build_ui()
+        self._center()
+        self.win.after(50, self._scan_ports)        # scan after window renders
+
+    # ── UI construction ──────────────────────────────────────────────────
+
+    def _build_ui(self) -> None:
+        f = ttk.Frame(self.win, padding=16)
+        f.grid(sticky="nsew")
+
+        ttk.Label(f, text="HackerFab Stepper",
+                  font=("Arial", 18, "bold")).grid(
+            row=0, column=0, columnspan=3, sticky="w")
+        ttk.Label(f, text="Photolithography stepper control",
+                  foreground="gray").grid(
+            row=1, column=0, columnspan=3, sticky="w", pady=(0, 8))
+        ttk.Separator(f, orient="horizontal").grid(
+            row=2, column=0, columnspan=3, sticky="ew", pady=(0, 10))
+
+        # Config file
+        ttk.Label(f, text="Config file:").grid(
+            row=3, column=0, sticky="e", padx=(0, 8), pady=4)
+        self._config_var = StringVar(value="default.toml")
+        ttk.Entry(f, textvariable=self._config_var, width=40).grid(
+            row=3, column=1, sticky="ew", pady=4)
+        ttk.Button(f, text="Browse…", command=self._browse).grid(
+            row=3, column=2, padx=(8, 0), pady=4)
+
+        ttk.Separator(f, orient="horizontal").grid(
+            row=4, column=0, columnspan=3, sticky="ew", pady=10)
+
+        # Stage port
+        ttk.Label(f, text="Stage port:").grid(
+            row=5, column=0, sticky="e", padx=(0, 8), pady=4)
+        self._port_var = StringVar(value="Scanning…")
+        self._combo = ttk.Combobox(f, textvariable=self._port_var,
+                                   state="readonly", width=40)
+        self._combo.grid(row=5, column=1, sticky="ew", pady=4)
+        ttk.Button(f, text="↺", width=3,
+                   command=self._scan_ports).grid(
+            row=5, column=2, padx=(8, 0), pady=4)
+
+        self._status_var = StringVar()
+        self._status_lbl = ttk.Label(f, textvariable=self._status_var, foreground="gray")
+        self._status_lbl.grid(row=6, column=0, columnspan=3, sticky="w", pady=(2, 0))
+
+        ttk.Separator(f, orient="horizontal").grid(
+            row=7, column=0, columnspan=3, sticky="ew", pady=10)
+
+        btns = ttk.Frame(f)
+        btns.grid(row=8, column=0, columnspan=3, sticky="e")
+        ttk.Button(btns, text="Cancel",
+                   command=self.win.destroy).pack(side="left", padx=4)
+        ttk.Button(btns, text="Launch  →",
+                   command=self._launch).pack(side="left", padx=4)
+
+        f.columnconfigure(1, weight=1)
+
+    def _center(self) -> None:
+        self.win.update_idletasks()
+        w, h = self.win.winfo_reqwidth(), self.win.winfo_reqheight()
+        sw, sh = self.win.winfo_screenwidth(), self.win.winfo_screenheight()
+        self.win.geometry(f"{w}x{h}+{(sw - w) // 2}+{(sh - h) // 2}")
+
+    # ── Actions ──────────────────────────────────────────────────────────
+
+    def _browse(self) -> None:
+        path = filedialog.askopenfilename(
+            parent=self.win,
+            title="Select config file",
+            filetypes=[("TOML files", "*.toml"), ("All files", "*.*")],
+        )
+        if path:
+            self._config_var.set(path)
+
+    def _scan_ports(self) -> None:
+        from serial.tools import list_ports
+        ports = list_ports.comports()
+        grbl  = [p for p in ports if (p.vid or 0) in self._GRBL_VIDS]
+        other = [p for p in ports if (p.vid or 0) not in self._GRBL_VIDS]
+
+        entries: list[tuple[str, str]] = []
+        for p in grbl:
+            entries.append((p.device,
+                            f"{p.device}  –  {p.description}  [Arduino / GRBL]"))
+        for p in other:
+            entries.append((p.device, f"{p.device}  –  {p.description}"))
+        entries.append(("none", "No stage  (run without hardware)"))
+
+        self._port_devices    = [e[0] for e in entries]
+        self._combo["values"] = [e[1] for e in entries]
+
+        if grbl:
+            self._combo.current(0)
+            if len(grbl) == 1:
+                self._status(f"✓  Auto-selected: {grbl[0].description}", "green")
+            else:
+                self._status(
+                    f"{len(grbl)} GRBL boards found – please select one", "dark orange")
+        elif ports:
+            self._combo.current(len(entries) - 1)
+            self._status(
+                "No Arduino / GRBL board detected – stage will be disabled", "#cc5500")
+        else:
+            self._combo.current(len(entries) - 1)
+            self._status(
+                "No serial ports found – connect the board then press  ↺", "#cc5500")
+
+    def _status(self, msg: str, color: str = "gray") -> None:
+        self._status_var.set(msg)
+        self._status_lbl.configure(foreground=color)
+
+    def _launch(self) -> None:
+        path = self._config_var.get().strip()
+        try:
+            with open(path, "r") as fh:
+                self.config = toml.load(fh)
+        except FileNotFoundError:
+            messagebox.showerror(
+                "Config not found", f"File not found:\n{path}", parent=self.win)
+            return
+        except Exception as e:
+            messagebox.showerror("Config error", str(e), parent=self.win)
+            return
+
+        idx = self._combo.current()
+        self.selected_port = self._port_devices[idx] if idx >= 0 else None
+        self.launched = True
+        self.win.destroy()
+
+    # ── Entry point ──────────────────────────────────────────────────────
+
+    def run(self) -> bool:
+        """Show the dialog; return True if the user clicked Launch."""
+        self.win.mainloop()
+        return self.launched
 
 
 def main():
+    dialog = _StartupDialog()
+    if not dialog.run():
+        return
 
-    # Open a file selector window
-    config_win = tkinter.Tk()
-    config_win.withdraw()
-    ftypes = [('all files', '.*'), ('toml files', '.toml')]
+    config = dialog.config
 
-    # Window to prompt user to select a toml configuration file
-    # Note: this assumes that the current working directory has all the possible toml files
-    config_path = filedialog.askopenfilename(title="Select a config file (default is default.toml)",
-                                    filetypes=ftypes)
-    print(f"Selected configuration: {config_path}")
-
-    try:
-        with open(config_path, "r") as f:
-            config = toml.load(f)
-    except FileNotFoundError:
-        print("config.toml does not exist, copying settings from default.toml")
-        shutil.copy("default.toml", config_path)
-        with open(config_path, "r") as f:
-            config = toml.load(f)
-
-    # STAGE CONFIG
-    config_win.destroy()
-    stage_config = config["stage"]
-    if stage_config["enabled"]:
-        serial_port = serial.Serial(stage_config["port"], stage_config["baud-rate"])
-        print(f"Using serial port {serial_port.name}")
-        stage = GrblStage(serial_port, stage_config["homing"])
+    # ── Stage ────────────────────────────────────────────────────────────
+    stage_cfg = config.get("stage", {})
+    port = dialog.selected_port
+    if stage_cfg.get("enabled", True) and port and port != "none":
+        try:
+            sp    = serial.Serial(port, stage_cfg.get("baud-rate", 115200))
+            stage = GrblStage(sp, stage_cfg.get("homing", False))
+        except Exception as e:
+            print(f"Stage connection failed ({port}): {e}")
+            stage = StageController()
     else:
         stage = StageController()
 
-    # CAMERA CONFIG
-
-    camera_config = config["camera"]
-    
-    if camera_config["type"] == "webcam":
-        try:
-            index = int(camera_config["index"])
-        except Exception:
-            index = 0
-        camera = Webcam(index)
-    elif camera_config["type"] == "flir":
+    # ── Camera ───────────────────────────────────────────────────────────
+    cam_cfg  = config.get("camera", {})
+    cam_type = cam_cfg.get("type", "none")
+    if cam_type == "webcam":
+        camera = Webcam(int(cam_cfg.get("index", 0)))
+    elif cam_type == "flir":
         import camera.flir.flir_camera as flir
         camera = flir.FlirCamera()
-    elif camera_config["type"] in ("basler", "pylon"):
+    elif cam_type in ("basler", "pylon"):
         from camera.pylon import BaslerPylon
-        try:
-            index = int(camera_config["index"])
-        except Exception:
-            index = 0
-        camera = BaslerPylon(index)
-    elif camera_config["type"] == "none":
+        camera = BaslerPylon(int(cam_cfg.get("index", 0)))
+    elif cam_type == "none":
         camera = None
     else:
-        print(f"config.toml specifies invalid camera type {camera_config['type']}")
-        return 1
+        print(f"Unknown camera type '{cam_type}' – camera disabled")
+        camera = None
 
-    camera_scale = float(camera_config.get("gui-scale", 1.0))
-    red_exposure = float(camera_config.get("red-exposure", DEFAULT_RED_EXPOSURE))
-    uv_exposure = float(camera_config.get("uv-exposure", DEFAULT_UV_EXPOSURE))
-    
-    # ALIGNMENT CONFIG
+    camera_scale = float(cam_cfg.get("gui-scale",    1.0))
+    red_exposure = float(cam_cfg.get("red-exposure",  DEFAULT_RED_EXPOSURE))
+    uv_exposure  = float(cam_cfg.get("uv-exposure",   DEFAULT_UV_EXPOSURE))
 
-    alignment_config = config["alignment"]
-    alignment_enabled = alignment_config.get("enabled", False)
-    alignment_model = alignment_config.get("model_path", "ckpts/best.pt")
-    
-    # Get alignment marker reference coordinates with defaults
-    right_marker_x = float(alignment_config.get("right_marker_x", 1820.0))
-    left_marker_x = float(alignment_config.get("left_marker_x", 280.0))
-    top_marker_y = float(alignment_config.get("top_marker_y", 269.0))
-    bottom_marker_y = float(alignment_config.get("bottom_marker_y", 1075.0))
-    
-    # Get scaling factors with defaults
-    x_scale_factor = float(alignment_config.get("x_scale_factor", -1100))
-    y_scale_factor = float(alignment_config.get("y_scale_factor", 800))
-    
+    # ── Alignment ────────────────────────────────────────────────────────
+    ac = config.get("alignment", {})
     alignment_config = AlignmentConfig(
-        enabled=alignment_enabled,
-        model_path=alignment_model,
-        right_marker_x=right_marker_x,
-        left_marker_x=left_marker_x,
-        top_marker_y=top_marker_y,
-        bottom_marker_y=bottom_marker_y,
-        x_scale_factor=x_scale_factor,
-        y_scale_factor=y_scale_factor,
-    )
-    
-    lithographer_config = LithographerConfig(
-        stage,
-        camera,
-        camera_scale,
-        red_exposure,
-        uv_exposure,
-        alignment_config,
+        enabled         = ac.get("enabled",         False),
+        model_path      = ac.get("model_path",      "ckpts/best.pt"),
+        right_marker_x  = float(ac.get("right_marker_x",  1820.0)),
+        left_marker_x   = float(ac.get("left_marker_x",    280.0)),
+        top_marker_y    = float(ac.get("top_marker_y",     269.0)),
+        bottom_marker_y = float(ac.get("bottom_marker_y", 1075.0)),
+        x_scale_factor  = float(ac.get("x_scale_factor",  -1100)),
+        y_scale_factor  = float(ac.get("y_scale_factor",    800)),
     )
 
-    lithographer = LithographerGui(lithographer_config)
+    lithographer = LithographerGui(LithographerConfig(
+        stage, camera, camera_scale, red_exposure, uv_exposure, alignment_config,
+    ))
     lithographer.root.mainloop()
 
 
