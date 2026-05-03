@@ -1314,28 +1314,21 @@ source = { virtual = "." }
 dependencies = [
     { name = "opencv-python" },
     { name = "pillow" },
+    { name = "pypylon" },
     { name = "pyserial" },
     { name = "toml" },
-    { name = "ttkbootstrap" },
     { name = "ultralytics" },
-]
-
-[package.optional-dependencies]
-basler = [
-    { name = "pypylon" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "opencv-python", specifier = ">=4.10" },
-    { name = "pillow", specifier = ">=10.0" },
-    { name = "pypylon", marker = "extra == 'basler'", specifier = ">=4.1" },
+    { name = "opencv-python", specifier = ">=4.11.0.86" },
+    { name = "pillow", specifier = ">=11.1.0" },
+    { name = "pypylon", specifier = ">=4.1.0" },
     { name = "pyserial", specifier = ">=3.5" },
-    { name = "toml", specifier = ">=0.10" },
-    { name = "ttkbootstrap", specifier = ">=1.10" },
-    { name = "ultralytics", specifier = ">=8.3" },
+    { name = "toml", specifier = ">=0.10.2" },
+    { name = "ultralytics", specifier = ">=8.3.218" },
 ]
-provides-extras = ["basler"]
 
 [[package]]
 name = "sympy"
@@ -1471,18 +1464,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/5c/38/db80e48b9220c9bce872b0f616ad0446cdf554a40b85c7865cbca99ab3c2/triton-3.5.0-cp313-cp313t-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:c83f2343e1a220a716c7b3ab9fccfcbe3ad4020d189549200e2d2e8d5868bed9", size = 170577179, upload-time = "2025-10-13T16:38:17.865Z" },
     { url = "https://files.pythonhosted.org/packages/ff/60/1810655d1d856c9a4fcc90ee8966d85f552d98c53a6589f95ab2cbe27bb8/triton-3.5.0-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:da0fa67ccd76c3dcfb0bffe1b1c57c685136a6bd33d141c24d9655d4185b1289", size = 170487949, upload-time = "2025-10-13T16:38:24.881Z" },
     { url = "https://files.pythonhosted.org/packages/fb/b7/1dec8433ac604c061173d0589d99217fe7bf90a70bdc375e745d044b8aad/triton-3.5.0-cp314-cp314t-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:317fe477ea8fd4524a6a8c499fb0a36984a56d0b75bf9c9cb6133a1c56d5a6e7", size = 170580176, upload-time = "2025-10-13T16:38:31.14Z" },
-]
-
-[[package]]
-name = "ttkbootstrap"
-version = "1.20.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pillow" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/00/fd/b2c7378cc73989d0a9da5e9c99428cab20cdd6c2f34fd54c08caea1b1bdc/ttkbootstrap-1.20.2.tar.gz", hash = "sha256:e8408ff4cffd7eb2767d7b33c3882d59c1bdf37cfeba29d9a3d45f486d370c7a", size = 175346, upload-time = "2026-03-08T23:11:13.623Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ca/cf/812a67729004c68ae58621c5a75ea242cd016826d033bbbd66e6e051553b/ttkbootstrap-1.20.2-py3-none-any.whl", hash = "sha256:6b3f25aa173c09423474ac31eeb2d766cf0f9514c8debe24da8d1f062e4afdcf", size = 190439, upload-time = "2026-03-08T23:11:12.568Z" },
 ]
 
 [[package]]
