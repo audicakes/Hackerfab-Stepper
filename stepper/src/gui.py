@@ -10,9 +10,11 @@ from datetime import datetime
 from enum import Enum, auto
 from functools import partial
 from pathlib import Path
-from tkinter import BooleanVar, IntVar, StringVar, Tk, filedialog, messagebox, ttk
-from tkinter.ttk import Progressbar
+from tkinter import BooleanVar, IntVar, StringVar, Tk, filedialog, messagebox
 from typing import Callable, List, Optional
+
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
 
 import cv2
 import numpy as np
@@ -928,7 +930,8 @@ class StagePositionFrame:
             x, y, z = self._position()
             event_dispatcher.move_absolute({"x": x, "y": y, "z": z})
 
-        self.set_position_button = ttk.Button(self.absolute_frame, text="Set Stage Position", command=callback_set)
+        self.set_position_button = ttk.Button(self.absolute_frame, text="Set Stage Position",
+                                              command=callback_set, bootstyle="primary-outline")
         self.set_position_button.grid(row=1, column=0, columnspan=3, sticky="ew")
 
         self.all_widgets = self.xy_widgets + self.z_widgets + [self.set_position_button]
@@ -972,9 +975,8 @@ class StagePositionFrame:
                         if hasattr(w, 'configure'):
                             w.configure(state="disabled")
                     self.zlock = True
-                    grey_color = '#b9bbb6'
                     for rect_id, _ in self.z_rectangles:
-                        self.z_canvas.itemconfig(rect_id, fill=grey_color)
+                        self.z_canvas.itemconfig(rect_id, fill='#3a3a3a')
     
         event_dispatcher.add_event_listener(Event.MOVEMENT_LOCK_CHANGED, on_lock_change)
 
@@ -996,12 +998,14 @@ class StagePositionFrame:
             event_dispatcher.move_absolute({"x": -14500.0, "y": -14500.0, "z": -14500.0})
         
         btn_state = "normal" if event_dispatcher.hardware.stage.has_homing() else "disabled"
-        self.chip_origin_button = ttk.Button(self.shortcut_frame, text="Chip origin", 
-                                            command=on_chip_origin, state=btn_state)
+        self.chip_origin_button = ttk.Button(self.shortcut_frame, text="Chip origin",
+                                            command=on_chip_origin, state=btn_state,
+                                            bootstyle="secondary-outline")
         self.chip_origin_button.grid(row=0, column=0, padx=5)
-        
-        self.chip_unload_button = ttk.Button(self.shortcut_frame, text="Load/unload", 
-                                            command=on_chip_unload, state=btn_state)
+
+        self.chip_unload_button = ttk.Button(self.shortcut_frame, text="Load/unload",
+                                            command=on_chip_unload, state=btn_state,
+                                            bootstyle="secondary-outline")
         self.chip_unload_button.grid(row=0, column=1, padx=5)
     
     # def _on_set_position(self):
@@ -1038,13 +1042,13 @@ class StagePositionFrame:
         self.custom_step_size_label = ttk.Label(parent, text="step size")
         self.custom_step_size = IntEntry(parent)
         
-        self.custom_step_pos_x_button = ttk.Button(parent, text=f"+X", command=lambda: custom_step_move(Direction.POS, Axis.X, self.custom_step_size.get()))
-        self.custom_step_pos_y_button = ttk.Button(parent, text=f"+Y", command=lambda: custom_step_move(Direction.POS, Axis.Y, self.custom_step_size.get()))
-        self.custom_step_pos_z_button = ttk.Button(parent, text=f"+Z", command=lambda: custom_step_move(Direction.POS, Axis.Z, self.custom_step_size.get()))
-        
-        self.custom_step_neg_x_button = ttk.Button(parent, text=f"-X", command=lambda: custom_step_move(Direction.NEG, Axis.X, self.custom_step_size.get()))
-        self.custom_step_neg_y_button = ttk.Button(parent, text=f"-Y", command=lambda: custom_step_move(Direction.NEG, Axis.Y, self.custom_step_size.get()))
-        self.custom_step_neg_z_button = ttk.Button(parent, text=f"-Z", command=lambda: custom_step_move(Direction.NEG, Axis.Z, self.custom_step_size.get()))
+        self.custom_step_pos_x_button = ttk.Button(parent, text="+X", bootstyle="info-outline", command=lambda: custom_step_move(Direction.POS, Axis.X, self.custom_step_size.get()))
+        self.custom_step_pos_y_button = ttk.Button(parent, text="+Y", bootstyle="info-outline", command=lambda: custom_step_move(Direction.POS, Axis.Y, self.custom_step_size.get()))
+        self.custom_step_pos_z_button = ttk.Button(parent, text="+Z", bootstyle="info-outline", command=lambda: custom_step_move(Direction.POS, Axis.Z, self.custom_step_size.get()))
+
+        self.custom_step_neg_x_button = ttk.Button(parent, text="-X", bootstyle="info-outline", command=lambda: custom_step_move(Direction.NEG, Axis.X, self.custom_step_size.get()))
+        self.custom_step_neg_y_button = ttk.Button(parent, text="-Y", bootstyle="info-outline", command=lambda: custom_step_move(Direction.NEG, Axis.Y, self.custom_step_size.get()))
+        self.custom_step_neg_z_button = ttk.Button(parent, text="-Z", bootstyle="info-outline", command=lambda: custom_step_move(Direction.NEG, Axis.Z, self.custom_step_size.get()))
 
         # formatting
         self.custom_step_size_label.grid(row=0, column=0)
@@ -1062,50 +1066,48 @@ class StagePositionFrame:
         canvas_size = 255
         center = canvas_size // 2
         
-        self.xy_canvas = tkinter.Canvas(parent, width=canvas_size, height=canvas_size, 
-                                   bg='#f0f0f0', highlightthickness=0)
+        self.xy_canvas = tkinter.Canvas(parent, width=canvas_size, height=canvas_size,
+                                   bg='#1e2330', highlightthickness=0)
         self.xy_canvas.pack()
-        
+
         # Step sizes for each layer (inner to outer)
         step_sizes = [10, 50, 100, 250]
-        
+
         # Radii for the 4 layers (inner to outer)
         radii = [31, 62, 94, 125]
-        
-        # Colors for each layer (lighter as you go out)
-        colors = ['#52796f', '#5a9a8b', '#7ab8a8', '#95c9be']
-        
-        # Draw concentric circles for layers
+
+        # Dark-theme blues: outer (big step) = dark navy, inner (fine step) = bright cyan
+        # colors[0] maps to the outermost ring in the draw loop (radii reversed)
+        colors = ['#1a3a5c', '#1e6fa8', '#1aa3d4', '#00d4ff']
+
+        # Draw concentric circles largest-first so smaller rings sit on top
         for i, radius in enumerate(radii[::-1]):
             self.xy_canvas.create_oval(
                 center - radius, center - radius,
                 center + radius, center + radius,
-                fill=colors[i], outline='#2c3e50', width=2
+                fill=colors[i], outline='#0d1b2a', width=1,
             )
-        
-        # Cardinal crosshairs match the click logic: top=+Y, bottom=-Y, right=+X, left=-X
-        self.xy_canvas.create_line(center, 0, center, canvas_size, fill="#2c3e50", width=2)
-        self.xy_canvas.create_line(0, center, canvas_size, center, fill="#2c3e50", width=2)
-        
-        # Labels for directions
-        label_offset = 160
+
+        # Cardinal crosshairs
+        self.xy_canvas.create_line(center, 0, center, canvas_size, fill='#ffffff', width=1)
+        self.xy_canvas.create_line(0, center, canvas_size, center,  fill='#ffffff', width=1)
+
+        # Direction labels
         labels = [
-            (center, 10, "+Y", '#85c1e9'),
-            (center, canvas_size - 10, "-Y", '#85c1e9'),
-            (canvas_size - 10, center, "+X", '#f4d03f'),
-            (10, center, "-X", '#f4d03f'),
+            (center, 10,              "+Y", '#ffffff'),
+            (center, canvas_size - 10, "-Y", '#ffffff'),
+            (canvas_size - 10, center, "+X", '#ffffff'),
+            (10,              center,  "-X", '#ffffff'),
         ]
-        
         for x, y, text, color in labels:
-            self.xy_canvas.create_text(x, y, text=text, fill=color, 
-                                      font=('Arial', 12, 'bold'))
-        
-        # Add step size labels on each layer
-        for i, (radius, step) in enumerate(zip(radii, step_sizes)):
-            # Show on top quadrant
-            y_pos = center - radius + 20
-            self.xy_canvas.create_text(center, y_pos, text=str(step), 
-                                      fill='white', font=('Arial', 9, 'bold'))
+            self.xy_canvas.create_text(x, y, text=text, fill=color,
+                                       font=('Arial', 11, 'bold'))
+
+        # Step-size hint on each ring (displayed in upper sector)
+        for radius, step in zip(radii, step_sizes):
+            y_pos = center - radius + 14
+            self.xy_canvas.create_text(center, y_pos, text=f"{step}µm",
+                                       fill='white', font=('Arial', 8, 'bold'))
         
         # Bind click events
         self.xy_canvas.bind('<Button-1>', self._on_xy_click)
@@ -1161,15 +1163,16 @@ class StagePositionFrame:
         total_height = section_height * 8
         
         self.z_canvas = tkinter.Canvas(parent, width=bar_width, height=total_height,
-                                 bg='#34495e', highlightthickness=0)
+                                 bg='#1e2330', highlightthickness=0)
         self.z_canvas.pack()
-        
+
         # Step sizes for Z (top 4 are +Z, bottom 4 are -Z)
         step_sizes = [10, 50, 100, 250]
-        
-        # Colors (gradient from light to dark for +Z, then dark to light for -Z)
-        colors_plus = ['#a8dadc', '#87bdbf', '#66a0a3', '#458486']
-        colors_minus = ['#458486', '#66a0a3', '#87bdbf', '#a8dadc']
+
+        # +Z = greens (dark=coarse at top, bright=fine near center)
+        # -Z = ambers (bright=fine near center, dark=coarse at bottom)
+        colors_plus  = ['#1b4332', '#2d6a4f', '#52b788', '#95d5b2']
+        colors_minus = ['#f9c74f', '#f4a261', '#e76f51', '#6d2c2c']
         
         # Store rectangle IDs/colors for lock-state recoloring
         self.z_rectangles = []   # List of (rect_id, original_color)
@@ -1196,13 +1199,15 @@ class StagePositionFrame:
 
             rect_id = self.z_canvas.create_rectangle(
                 0, y_start, bar_width, y_end,
-                fill=color, outline='#2c3e50', width=2
+                fill=color, outline='#0d1b2a', width=1,
             )
             self.z_rectangles.append((rect_id, color))
 
+            # Dark sections (coarse steps) get white text; bright sections get dark text
+            text_color = '#ffffff' if i in (0, 1, 6, 7) else '#1a1a2e'
             self.z_canvas.create_text(
                 bar_width // 2, (y_start + y_end) // 2,
-                text=label, fill='#1a1a1a', font=('Arial', 10, 'bold')
+                text=label, fill=text_color, font=('Arial', 9, 'bold'),
             )
 
         # One canvas-level binding avoids double-firing when the click lands on a text item
@@ -1253,8 +1258,9 @@ class ImageAdjustFrame:
             x, y, t = self._position()
             event_dispatcher.set_image_position(x, y, t)
 
-        self.set_position_button = ttk.Button(self.absolute_frame, text="Set Image Position", command=callback_set)
-        self.set_position_button.grid(row=1, column=0, columnspan=3, sticky="ew")
+        self.set_position_button = ttk.Button(self.absolute_frame, text="Set Image Position",
+                                               command=callback_set, bootstyle="primary-outline")
+        self.set_position_button.grid(row=1, column=0, columnspan=3, sticky="ew", padx=4, pady=(2, 6))
 
         # Relative
         self.relative_frame = ttk.LabelFrame(self.frame, text="Adjustment")
@@ -1295,15 +1301,19 @@ class ImageAdjustFrame:
                 self.relative_frame,
                 text=f"+{coord.upper()}",
                 command=partial(callback_pos, i, coord),
+                bootstyle="info-outline",
+                width=6,
             )
             coord_dec_button = ttk.Button(
                 self.relative_frame,
                 text=f"-{coord.upper()}",
                 command=partial(callback_neg, i, coord),
+                bootstyle="info-outline",
+                width=6,
             )
 
-            coord_inc_button.grid(row=0, column=i)
-            coord_dec_button.grid(row=1, column=i)
+            coord_inc_button.grid(row=0, column=i, padx=4, pady=(6, 2))
+            coord_dec_button.grid(row=1, column=i, padx=4, pady=(2, 4))
 
             self.lockable_widgets.append(coord_inc_button)
             self.lockable_widgets.append(coord_dec_button)
@@ -1629,22 +1639,30 @@ class ChipFrame:
 
         self.model.add_event_listener(Event.CHIP_CHANGED, on_chip_changed)
 
-        self.open_chip_button = ttk.Button(self.chip_select_frame, text="Open", command=on_open)
-        self.open_chip_button.grid(row=0, column=2)
-        self.new_chip_button = ttk.Button(self.chip_select_frame, text="New", command=on_new)
-        self.new_chip_button.grid(row=0, column=3)
-        self.save_chip_button = ttk.Button(self.chip_select_frame, text="Save As", command=on_save)
-        self.save_chip_button.grid(row=0, column=4)
-        self.finish_layer_button = ttk.Button(self.chip_select_frame, text="Finish Layer", command=on_finish_layer)
-        self.finish_layer_button.grid(row=0, column=5)
+        _cbtn_grid = dict(padx=4, pady=4)
+        _cbtn_w = 14
+        self.open_chip_button = ttk.Button(self.chip_select_frame, text="Open",
+                                           command=on_open, bootstyle="secondary-outline", width=_cbtn_w)
+        self.open_chip_button.grid(row=0, column=2, **_cbtn_grid)
+        self.new_chip_button = ttk.Button(self.chip_select_frame, text="New",
+                                          command=on_new, bootstyle="secondary-outline", width=_cbtn_w)
+        self.new_chip_button.grid(row=0, column=3, **_cbtn_grid)
+        self.save_chip_button = ttk.Button(self.chip_select_frame, text="Save As",
+                                           command=on_save, bootstyle="secondary-outline", width=_cbtn_w)
+        self.save_chip_button.grid(row=0, column=4, **_cbtn_grid)
+        self.finish_layer_button = ttk.Button(self.chip_select_frame, text="Finish Layer",
+                                              command=on_finish_layer, bootstyle="primary-outline", width=_cbtn_w)
+        self.finish_layer_button.grid(row=0, column=5, **_cbtn_grid)
         self.finish_layer_button.configure(state="disabled")
         self.delete_exposure_button = ttk.Button(
             self.chip_select_frame,
             text="Delete Exposure",
             command=on_delete_exposure,
+            bootstyle="danger-outline",
             state="disabled",
+            width=_cbtn_w,
         )
-        self.delete_exposure_button.grid(row=0, column=6)
+        self.delete_exposure_button.grid(row=0, column=6, **_cbtn_grid)
 
         self.layer_frame = ttk.Frame(self.frame)
         self.layer_frame.grid(row=1, column=0)
@@ -1798,22 +1816,24 @@ class PatterningFrame:
 
         self.begin_patterning_button = ttk.Button(
             self.frame,
-            text="Begin Patterning",
+            text="▶  Begin Patterning",
             command=lambda: event_dispatcher.begin_patterning(),
-            state="enabled",
+            bootstyle="success",
+            state="normal",
         )
-        self.begin_patterning_button.grid(row=1, column=0)
+        self.begin_patterning_button.grid(row=1, column=0, sticky="ew", padx=6, pady=(4, 2))
 
         self.abort_patterning_button = ttk.Button(
             self.frame,
-            text="Abort Patterning",
+            text="■  Abort",
             command=lambda: event_dispatcher.abort_patterning(),
+            bootstyle="danger",
             state="disabled",
         )
-        self.abort_patterning_button.grid(row=2, column=0)
+        self.abort_patterning_button.grid(row=2, column=0, sticky="ew", padx=6, pady=(2, 4))
 
         ttk.Label(self.frame, text="Exposure Progress", anchor="s").grid(row=3, column=0)
-        self.exposure_progress = Progressbar(self.frame, orient="horizontal", mode="determinate", maximum=1000)
+        self.exposure_progress = ttk.Progressbar(self.frame, orient="horizontal", mode="determinate", maximum=1000, bootstyle="success")
         self.exposure_progress.grid(row=4, column=0, sticky="ew")
 
         self.set_image(Image.new("RGB", (1, 1)))
@@ -2137,16 +2157,22 @@ class GlobalSettingsFrame:
             print(markers)
         
         self.alignbutton = ttk.Button(
-            self.frame, 
-            text="Align :)", 
-            command=do_align, 
+            self.frame,
+            text="Auto-Align",
+            command=do_align,
             state="disabled" if event_dispatcher.model is None else "normal",
+            bootstyle="primary-outline",
+            width=12,
         )
-        self.alignbutton.grid(row=2, column=1)
+        self.alignbutton.grid(row=2, column=1, padx=4, pady=4, sticky="ew")
 
-        # TODO: Fix this
-        self.autofocus_button = ttk.Button(self.frame, text="Autofocus", command=lambda: event_dispatcher.autofocus(blue_only=event_dispatcher.in_uv()))
-        self.autofocus_button.grid(row=2, column=0, sticky="ew")
+        self.autofocus_button = ttk.Button(
+            self.frame, text="Autofocus",
+            command=lambda: event_dispatcher.autofocus(blue_only=event_dispatcher.in_uv()),
+            bootstyle="secondary-outline",
+            width=12,
+        )
+        self.autofocus_button.grid(row=2, column=0, padx=4, pady=4, sticky="ew")
 
         # Maybe this should have a scale?
         # Or, even further, maybe this should just be the same as the interface for posterization strength?
@@ -2164,8 +2190,10 @@ class GlobalSettingsFrame:
         self.placeholder_photo = image_to_tk_image(Image.new("RGB", THUMBNAIL_SIZE, "black"))
         self.photo = None
 
+        ttk.Label(self.frame, text="Current Pattern", anchor="center").grid(
+            row=4, column=0, columnspan=2, pady=(6, 2))
         self.current_image = ttk.Label(self.frame, image=self.placeholder_photo)  # type:ignore
-        self.current_image.grid(row=4, column=0, columnspan=2)
+        self.current_image.grid(row=5, column=0, columnspan=2, pady=(0, 4))
 
         # Disable the autofocus button if autofocus is already running
         def movement_lock_changed():
@@ -2188,7 +2216,7 @@ class GlobalSettingsFrame:
         event_dispatcher.add_event_listener(Event.SHOWN_IMAGE_CHANGED, shown_image_changed)
 
         self.snapshot_frame = ttk.LabelFrame(self.frame, text="Snapshot Settings")
-        self.snapshot_frame.grid(row=5, column=0, columnspan=2, sticky="ew", pady=5)
+        self.snapshot_frame.grid(row=6, column=0, columnspan=2, sticky="ew", pady=5)
 
         self.auto_snapshot_var = BooleanVar(value=event_dispatcher.auto_snapshot_on_uv)
         self.auto_snapshot_check = ttk.Checkbutton(
@@ -2536,12 +2564,16 @@ class TilingFrame:
         #Tiling check must be done before segment images if needed
         self.tiling_check_button = TilingCheckFrame(self.frame, model)
         self.tiling_check_button.frame.grid(row=0, column = 0)
-        self.segment_images_button = ttk.Button(self.frame, text="Segement Images", command=segment, state="enabled")
-        self.segment_images_button.grid(row=1, column=0)
-        self.begin_tiling_button = ttk.Button(self.frame, text="Begin Tiling", command=on_begin, state="enabled")
-        self.begin_tiling_button.grid(row=2, column=0)
-        self.abort_tiling_button = ttk.Button(self.frame, text="Abort Tiling", command=on_abort, state="disabled")
-        self.abort_tiling_button.grid(row=3, column=0)
+        _tbtn = dict(sticky="ew", padx=6, pady=3)
+        self.segment_images_button = ttk.Button(self.frame, text="Segment Images",
+                                                command=segment, bootstyle="secondary-outline", width=16)
+        self.segment_images_button.grid(row=1, column=0, **_tbtn)
+        self.begin_tiling_button = ttk.Button(self.frame, text="▶  Begin Tiling",
+                                              command=on_begin, bootstyle="success", width=16)
+        self.begin_tiling_button.grid(row=2, column=0, **_tbtn)
+        self.abort_tiling_button = ttk.Button(self.frame, text="■  Abort Tiling",
+                                              command=on_abort, bootstyle="danger", width=16, state="disabled")
+        self.abort_tiling_button.grid(row=3, column=0, **_tbtn)
 
 
 class ProjectorDisplayFrame:
@@ -2566,10 +2598,29 @@ class ProjectorDisplayFrame:
         self.label.grid(row=0, column=0, padx=5, pady=5)
         
         # Status label showing current mode
-        self.status_var = StringVar(value="Status: Clear")
-        self.status_label = ttk.Label(self.display_frame, textvariable=self.status_var)
-        self.status_label.grid(row=1, column=0, padx=5, pady=5)
-        
+        self.status_var = StringVar(value="Clear")
+        self.status_label = ttk.Label(self.display_frame, textvariable=self.status_var,
+                                      bootstyle="secondary")
+        self.status_label.grid(row=1, column=0, padx=5, pady=(0, 4))
+
+        # Fullscreen toggle — move the projector window to the DLP display first, then click
+        def _toggle_fs():
+            proj = event_dispatcher.hardware.projector
+            proj.toggle_fullscreen()
+            fs = getattr(proj, "_fullscreen", False)
+            self._fs_btn.configure(
+                text="⛶  Exit Fullscreen" if fs else "⛶  Fullscreen on DLP",
+                bootstyle="warning" if fs else "secondary-outline",
+            )
+
+        self._fs_btn = ttk.Button(
+            self.display_frame,
+            text="⛶  Fullscreen on DLP",
+            bootstyle="secondary-outline",
+            command=_toggle_fs,
+        )
+        self._fs_btn.grid(row=2, column=0, sticky="ew", padx=5, pady=(0, 6))
+
         # Listen for projector changes
         event_dispatcher.add_event_listener(Event.SHOWN_IMAGE_CHANGED, self._update_display)
         event_dispatcher.add_event_listener(Event.PATTERN_IMAGE_CHANGED, self._update_display)
@@ -2923,8 +2974,14 @@ class LithographerGui:
     root: Tk
     event_dispatcher: EventDispatcher
 
-    def __init__(self, config: LithographerConfig):
-        self.root = Tk()
+    def __init__(self, config: LithographerConfig, root: tkinter.Tk):
+        self.root = root
+        self.root.title("HackerFab Stepper")
+
+        # Global baseline: every plain TButton gets comfortable padding.
+        # ttkbootstrap bootstyle variants inherit from this.
+        _s = ttk.Style()
+        _s.configure("TButton", padding=(10, 5))
         self.event_dispatcher = EventDispatcher(
             config.stage, 
             TkProjector(self.root), 
@@ -2957,23 +3014,23 @@ class LithographerGui:
         self.top_panel.grid_columnconfigure(2, weight=1)
 
         # Projector setup reminder – dismissible banner, not a blocking popup
-        _banner = ttk.Frame(self.top_panel, relief="groove", padding=(8, 4))
+        _banner = ttk.Frame(self.top_panel, bootstyle="warning", padding=(10, 6))
         _banner.grid(row=1, column=0, columnspan=3, sticky="ew", padx=5, pady=(0, 4))
         ttk.Label(
             _banner,
             text=(
-                "⚠  Move the projector window to the DLP display before starting.  "
+                "⚠  Move the projector window to the DLP display before starting. "
                 "Click the fullscreen black window, then press Win+Shift+← "
-                "until it is no longer visible."
+                "until it disappears."
             ),
-            foreground="#8B4513",
+            bootstyle="inverse-warning",
             wraplength=900,
         ).pack(side="left", fill="x", expand=True)
-        ttk.Button(_banner, text="Dismiss",
+        ttk.Button(_banner, text="Dismiss", bootstyle="warning-outline",
                    command=_banner.destroy).pack(side="right", padx=(8, 0))
 
         # Progress bar
-        self.pattern_progress = Progressbar(self.root, orient="horizontal", mode="determinate")
+        self.pattern_progress = ttk.Progressbar(self.root, orient="horizontal", mode="determinate", bootstyle="info")
         self.pattern_progress.grid(row=1, column=0, sticky="ew")
 
         # Main tab interface (replaces middle_panel)
@@ -2984,21 +3041,23 @@ class LithographerGui:
         self.bottom_panel = ttk.Frame(self.root)
         self.bottom_panel.grid(row=3, column=0, sticky="ew")
 
+        _bp = dict(padx=8, pady=6, sticky="nsew")
+
         # Chip management
         self.chip_frame = ChipFrame(self.bottom_panel, self.event_dispatcher)
-        self.chip_frame.frame.grid(row=0, column=0)
+        self.chip_frame.frame.grid(row=0, column=0, **_bp)
 
         # Image adjustment controls
         self.image_adjust_frame = ImageAdjustFrame(self.bottom_panel, self.event_dispatcher)
-        self.image_adjust_frame.frame.grid(row=0, column=1)
+        self.image_adjust_frame.frame.grid(row=0, column=1, **_bp)
 
         # Global settings
         self.global_settings_frame = GlobalSettingsFrame(self.bottom_panel, self.event_dispatcher, config.alignment.enabled)
-        self.global_settings_frame.frame.grid(row=0, column=2)
+        self.global_settings_frame.frame.grid(row=0, column=2, **_bp)
 
         # Tiling controls
         self.tiling_frame = TilingFrame(self.bottom_panel, self.event_dispatcher)
-        self.tiling_frame.frame.grid(row=0, column=3)
+        self.tiling_frame.frame.grid(row=0, column=3, **_bp)
 
         # Legacy references for compatibility (if needed elsewhere in code)
         self.exposure_frame = self.mode_select_frame.uv_mode_frame.exposure_frame
@@ -3040,10 +3099,11 @@ class _StartupDialog:
         0x067B,  # Prolific PL2303
     }
 
-    def __init__(self):
-        self.win = tkinter.Tk()
-        self.win.title("HackerFab Stepper")
+    def __init__(self, master: tkinter.Tk):
+        self.win = tkinter.Toplevel(master)
+        self.win.title("HackerFab Stepper – Setup")
         self.win.resizable(False, False)
+        self.win.grab_set()  # modal: blocks interaction with the hidden root window
 
         self.config: dict = {}
         self.selected_port: Optional[str] = None   # None → no stage
@@ -3061,10 +3121,10 @@ class _StartupDialog:
         f.grid(sticky="nsew")
 
         ttk.Label(f, text="HackerFab Stepper",
-                  font=("Arial", 18, "bold")).grid(
+                  font=("Arial", 20, "bold"), bootstyle="info").grid(
             row=0, column=0, columnspan=3, sticky="w")
         ttk.Label(f, text="Photolithography stepper control",
-                  foreground="gray").grid(
+                  bootstyle="secondary").grid(
             row=1, column=0, columnspan=3, sticky="w", pady=(0, 8))
         ttk.Separator(f, orient="horizontal").grid(
             row=2, column=0, columnspan=3, sticky="ew", pady=(0, 10))
@@ -3075,7 +3135,8 @@ class _StartupDialog:
         self._config_var = StringVar(value="default.toml")
         ttk.Entry(f, textvariable=self._config_var, width=40).grid(
             row=3, column=1, sticky="ew", pady=4)
-        ttk.Button(f, text="Browse…", command=self._browse).grid(
+        ttk.Button(f, text="Browse…", command=self._browse,
+                   bootstyle="secondary-outline").grid(
             row=3, column=2, padx=(8, 0), pady=4)
 
         ttk.Separator(f, orient="horizontal").grid(
@@ -3088,8 +3149,8 @@ class _StartupDialog:
         self._combo = ttk.Combobox(f, textvariable=self._port_var,
                                    state="readonly", width=40)
         self._combo.grid(row=5, column=1, sticky="ew", pady=4)
-        ttk.Button(f, text="↺", width=3,
-                   command=self._scan_ports).grid(
+        ttk.Button(f, text="↺", width=3, command=self._scan_ports,
+                   bootstyle="info-outline").grid(
             row=5, column=2, padx=(8, 0), pady=4)
 
         self._status_var = StringVar()
@@ -3101,10 +3162,10 @@ class _StartupDialog:
 
         btns = ttk.Frame(f)
         btns.grid(row=8, column=0, columnspan=3, sticky="e")
-        ttk.Button(btns, text="Cancel",
-                   command=self.win.destroy).pack(side="left", padx=4)
-        ttk.Button(btns, text="Launch  →",
-                   command=self._launch).pack(side="left", padx=4)
+        ttk.Button(btns, text="Cancel", command=self.win.destroy,
+                   bootstyle="secondary").pack(side="left", padx=4)
+        ttk.Button(btns, text="Launch  →", command=self._launch,
+                   bootstyle="success").pack(side="left", padx=4)
 
         f.columnconfigure(1, weight=1)
 
@@ -3183,14 +3244,20 @@ class _StartupDialog:
     # ── Entry point ──────────────────────────────────────────────────────
 
     def run(self) -> bool:
-        """Show the dialog; return True if the user clicked Launch."""
-        self.win.mainloop()
+        """Block until the dialog is closed; return True if the user clicked Launch."""
+        self.win.wait_window()
         return self.launched
 
 
 def main():
-    dialog = _StartupDialog()
+    # One root window for the entire app lifetime — ttkbootstrap Style binds to it
+    # and must never be destroyed and recreated.
+    root = ttk.Window(themename="darkly")
+    root.withdraw()  # stay hidden until the main UI is ready
+
+    dialog = _StartupDialog(root)
     if not dialog.run():
+        root.destroy()
         return
 
     config = dialog.config
@@ -3244,8 +3311,9 @@ def main():
 
     lithographer = LithographerGui(LithographerConfig(
         stage, camera, camera_scale, red_exposure, uv_exposure, alignment_config,
-    ))
-    lithographer.root.mainloop()
+    ), root)
+    root.deiconify()  # show the main window now that it's fully built
+    root.mainloop()
 
 
 if __name__ == "__main__":
