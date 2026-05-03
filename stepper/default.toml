@@ -23,10 +23,9 @@ uv-exposure = 25000.0
 enabled = true #NEW NEW NEW; set enabled to true in other part of file too
 # Set homing to false if your stage does not have limit sensors
 homing = false
-# Serial port for the GRBL board.
-# "auto" scans for a connected Arduino/GRBL board automatically (recommended).
-# Set to a specific path (e.g. "/dev/ttyACM0" or "COM3") to override auto-detection.
-port = "auto"
+# Select the correct serial port for the device running GRBL.
+# The correct serial port can be checked with Device Manager on Windows.
+port = "/dev/tty.usbmodem3101" #CHANGE THIS; from new connection after connecting board to computer and running ls /dev/tty.* in terminal
 
 # GRBL's baud rate is almost always 115200, do not change this value
 baud-rate = 115200

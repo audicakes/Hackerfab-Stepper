@@ -1,124 +1,167 @@
 # Hacker Fab
+# J. Kent Wirant
 # GRBL Stage Controller
 
 import time
 
 from stage_control.stage_controller import StageController, UnsupportedCommand
 
-_SERIAL_TIMEOUT = 5.0  # seconds to wait for a GRBL response before raising
+
+def clamp(value, lo, hi):
+    if value > hi:
+        return hi
+    elif value < lo:
+        return lo
+    else:
+        return value
 
 
 class GrblStage(StageController):
-    """Controls a GRBL-based stepper motor stage over a serial port."""
-
-    def __init__(self, controller_target, enable_homing: bool):
+    # only x, y, and z axes are supported by this interface
+    # may support alternative axes schemes in the future
+    # controller_target must be an open file (may be serial port for example)
+    def __init__(self, controller_target, enable_homing):
         self.controller_target = controller_target
-        self.controller_target.timeout = _SERIAL_TIMEOUT
         self.enable_homing = enable_homing
 
-        # Give GRBL time to boot, then discard the startup banner
-        time.sleep(2.0)
-        self.controller_target.reset_input_buffer()
+        time.sleep(3.0) # allow time for grbl to boot
+        print(self.controller_target.read_all())
 
-        idle, pos = self._query_state()
-        print(f"GRBL connected – idle={idle}, position={pos}")
+        self.axes = ("x", "y", "z")
 
-    # ------------------------------------------------------------------ #
-    # Internal communication
-    # ------------------------------------------------------------------ #
+        self.resp_buffer = b""
 
-    def _send_msg(self, msg: bytes) -> None:
-        """Send a G-code line and wait for the 'ok' acknowledgement."""
+        print(self._query_state())
+
+    def _fill_resp_buffer(self):
+        self.resp_buffer += self.controller_target.read_all()
+
+    def _send_msg(self, msg: bytes):
         self.controller_target.write(msg)
-        for _ in range(20):
-            line = self.controller_target.read_until(b'\n').rstrip(b'\r\n')
-            if not line:
-                raise TimeoutError(
-                    f"GRBL timeout waiting for response to {msg!r}"
-                )
-            if line == b'ok':
-                return
-            if line.startswith(b'error:'):
-                raise RuntimeError(
-                    f"GRBL error: {line.decode('ascii', errors='replace')}"
-                )
-            # Skip bracketed info/status messages (e.g. [MSG:...], [GC:...])
-            if line.startswith(b'[') or line.startswith(b'<'):
-                continue
-            print(f"GRBL: {line.decode('ascii', errors='replace')}")
-        raise RuntimeError("GRBL: too many unexpected responses")
+        while b"\r\n" not in self.resp_buffer:
+            self._fill_resp_buffer()
+        resp, self.resp_buffer = self.resp_buffer.split(b"\r\n", maxsplit=1)
+        if resp != b"ok":
+            raise Exception(f"not ok!!! {resp}")
 
-    def _query_state(self) -> tuple[bool, tuple[float, float, float]]:
-        """Send '?' and parse the real-time status response."""
-        self.controller_target.write(b'?')
-        for _ in range(10):
-            line = (
-                self.controller_target.read_until(b'\n')
-                .rstrip(b'\r\n')
-                .decode('ascii', errors='replace')
-            )
-            if line.startswith('<') and line.endswith('>'):
-                return self._parse_state(line)
-            if not line:
-                break
-            # Discard any queued 'ok' or info lines
-        return False, (0.0, 0.0, 0.0)
-
-    @staticmethod
-    def _parse_state(resp: str) -> tuple[bool, tuple[float, float, float]]:
-        """Parse a GRBL status string like '<Idle|MPos:0.000,0.000,0.000|...>'."""
+    def _query_state(self):
+        self.controller_target.write(b"?")
+        while b">\r\n" not in self.resp_buffer:
+            self._fill_resp_buffer()
+        resp, self.resp_buffer = self.resp_buffer.split(b">\r\n", maxsplit=1)
+        resp = resp.decode("ascii")
+        print(repr(resp))
+        print(len(self.resp_buffer), self.controller_target.in_waiting)
         idle = False
-        position = (0.0, 0.0, 0.0)
-        for part in resp[1:-1].split('|'):  # strip the surrounding < >
-            if 'Idle' in part:
+        for part in resp.split("|"):
+            if "Idle" in part:
                 idle = True
-            elif part.startswith('MPos:'):
-                try:
-                    x, y, z = part[5:].split(',')
-                    position = (float(x), float(y), float(z))
-                except (ValueError, IndexError):
-                    pass
+            elif part.startswith("MPos:"):
+                x, y, z = part.removeprefix("MPos:").split(",")
+                position = (float(x), float(y), float(z))
+
         return idle, position
 
-    def wait_for_idle(self) -> None:
-        """Poll GRBL status until it reports Idle."""
-        while True:
-            idle, _ = self._query_state()
-            if idle:
-                return
-            time.sleep(0.05)
+    def __del__(self):
+        self._send_msg(b"G91\n")
 
-    # ------------------------------------------------------------------ #
-    # StageController interface
-    # ------------------------------------------------------------------ #
-
-    def has_homing(self) -> bool:
+    def has_homing(self):
         return self.enable_homing
 
-    def home(self) -> None:
-        if not self.enable_homing:
+    def home(self):
+        if self.enable_homing:
+            self._send_msg(b"$H\n")
+        else:
             raise UnsupportedCommand()
-        self._send_msg(b'$H\n')
 
-    def _move(self, microns: dict[str, float], relative: bool) -> None:
-        self._send_msg(b'G91\n' if relative else b'G90\n')
-        parts = ['G0']
-        if 'x' in microns:
-            parts.append(f'X{microns["x"] / 1000.0:.4f}')
-        if 'y' in microns:
-            parts.append(f'Y{microns["y"] / 1000.0:.4f}')
-        if 'z' in microns:
-            parts.append(f'Z{microns["z"] / 1000.0:.4f}')
-        self._send_msg((' '.join(parts) + '\n').encode('ascii'))
+    def _move(self, microns: dict[str, float], relative):
+        if relative:
+            self._send_msg(b"G91\n")
+        else:
+            self._send_msg(b"G90\n")
 
-    def move_by(self, amounts: dict[str, float]) -> None:
-        print('moving relative', amounts)
-        self._move(amounts, relative=True)
+        msg = "G0"
+        if "x" in microns:
+            x_mm = microns["x"] / 1000.0
+            msg += f" x{x_mm:.3f}"
+        if "y" in microns:
+            y_mm = microns["y"] / 1000.0
+            msg += f" y{y_mm:.3f}"
+        if "z" in microns:
+            z_mm = microns["z"] / 1000.0
+            msg += f" z{z_mm:.3f}"
+        msg += "\n"
 
-    def move_to(self, amounts: dict[str, float]) -> None:
-        print('moving absolute', amounts)
-        self._move(amounts, relative=False)
+        self._send_msg(msg.encode("ascii"))
 
-    def close(self) -> None:
-        if self.controller_target.is_open:
-            self.controller_target.close()
+    def move_relative(self, microns: dict[str, float]):
+        print("moving relative", microns)
+        self._move(microns, relative=True)
+
+    def move_absolute(self, microns: dict[str, float]):
+        print("moving absolute", microns)
+        self._move(microns, relative=False)
+
+    def move_by(self, amounts):
+        self.move_relative(amounts)
+
+    def move_to(self, amounts):
+        self.move_absolute(amounts)
+
+    """
+    # pass in list of amounts to move by. Dictionary in "axis: amount" format
+    def move_by(self, amounts: dict[str, float]):
+        # first make sure axes are valid
+        if self.__axes_valid__(list(amounts.keys())):
+            x, y, z = self.__adjust_coordinates__(amounts, True)
+            self._move_relative((x, y, z))
+            # if that worked, update internal position
+            self.position[0] += x
+            self.position[1] += y
+            self.position[2] += z
+            print(f"moved by {x} {y} {z}")
+        else:
+            print('Error: tried to move on invalid axis')
+
+    def move_to(self, amounts: dict[str, float]):
+        # first make sure axes are valid
+        if self.__axes_valid__(list(amounts.keys())):
+            x, y, z = self.__adjust_coordinates__(amounts, False)
+            self._move_absolute((x, y, z))
+            # if that worked, update internal position
+            self.position[0] = x
+            self.position[1] = y
+            self.position[2] = z
+
+    def __axes_valid__(self, axes):
+        for axis in axes:
+            if axis not in self.axes or (axis != 'x' and axis != 'y' and axis != 'z'):
+                return False
+        return True
+    
+    def __adjust_coordinates__(self, amounts: dict[str, float], relative: bool):
+        coords = [0.0, 0.0, 0.0]
+        clamped_amt = [0.0, 0.0, 0.0]
+        coords[0] = amounts.get('x')
+        coords[1] = amounts.get('y')
+        coords[2] = amounts.get('z')
+
+        for i in range(0, len(coords)):
+            bounds_lo, bounds_hi = self.bounds[i]
+            if coords[i] == None:
+                if relative:
+                    coords[i] = 0
+                else:
+                    coords[i] = self.position[i]
+            else:
+                # if bounds exceeded, set target coordinate to the boundary
+                if relative:
+                    clamped_amt[i] = clamp(coords[i] + self.position[i], bounds_lo, bounds_hi) - self.position[i]
+                else:
+                    clamped_amt[i] = clamp(coords[i], bounds_lo, bounds_hi)
+        print('a')
+        print(self.position)
+        print(coords)
+        print(clamped_amt)
+        return clamped_amt
+    """
