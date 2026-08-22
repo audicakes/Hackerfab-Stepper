@@ -23,7 +23,7 @@ fi
 # ── 2. Install / sync dependencies ─────────────────────────────────────
 # On first run this downloads PyTorch + friends (~1-2 GB). Grab a coffee.
 echo "  Checking dependencies..."
-uv sync --quiet
+uv sync
 echo "  Dependencies OK"
 echo ""
 
