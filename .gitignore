@@ -17,6 +17,7 @@ htmlcov/
 
 # Application-generated diagnostics and captures
 aftest/
+stepper/stepper_captures/
 focusred.png
 focusblue.png
 

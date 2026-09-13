@@ -3113,6 +3113,7 @@ class _StartupDialog:
         0x0403,  # FTDI
         0x10C4,  # Silicon Labs CP210x
         0x067B,  # Prolific PL2303
+        0x2E8A,  # Raspberry Pi RP2040 / BTT SKR Pico
     }
 
     def __init__(self, master: tkinter.Tk):
@@ -3227,9 +3228,16 @@ class _StartupDialog:
                 self._status(
                     f"{len(grbl)} GRBL boards found – please select one", "dark orange")
         elif ports:
-            self._combo.current(len(entries) - 1)
-            self._status(
-                "No Arduino / GRBL board detected – stage will be disabled", "#cc5500")
+            if len(other) == 1:
+                self._combo.current(0)
+                self._status(
+                    f"Unrecognized serial device auto-selected: {other[0].description}",
+                    "dark orange",
+                )
+            else:
+                self._combo.current(len(entries) - 1)
+                self._status(
+                    "No Arduino / GRBL board detected – select the controller from the list", "#cc5500")
         else:
             self._combo.current(len(entries) - 1)
             self._status(
