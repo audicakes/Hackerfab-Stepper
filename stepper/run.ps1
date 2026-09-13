@@ -1,10 +1,11 @@
 # HackerFab Stepper – Windows launcher (PowerShell)
 # Run from any directory; script locates the project root automatically.
 #
-# If Windows blocks the script: right-click → "Run with PowerShell"
-# or run:  Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+# Use -SetupOnly to install and validate dependencies without opening the GUI.
 
-param()
+param(
+    [switch]$SetupOnly
+)
 $ErrorActionPreference = "Stop"
 
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -27,11 +28,17 @@ if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
 # ── 2. Install / sync dependencies ───────────────────────────────────────
 # First run downloads PyTorch + friends (~1-2 GB). This is normal.
 Write-Host "  Checking dependencies..." -ForegroundColor Yellow
-uv sync --quiet
+uv sync --locked --quiet
 Write-Host "  Dependencies OK" -ForegroundColor Green
 Write-Host ""
+
+if ($SetupOnly) {
+    Write-Host "  Setup-only check complete." -ForegroundColor Green
+    exit 0
+}
 
 # ── 3. Launch ────────────────────────────────────────────────────────────
 Write-Host "  Starting..." -ForegroundColor Green
 Write-Host ""
 uv run python src/gui.py
+exit $LASTEXITCODE

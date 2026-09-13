@@ -3,12 +3,16 @@
 :: Double-click this file to start the application.
 title HackerFab Stepper
 
-:: Run the PowerShell launcher (handles uv install + dependency sync)
-powershell -ExecutionPolicy Bypass -File "%~dp0run.ps1"
+:: Run the PowerShell launcher (handles uv install + dependency sync).
+:: Arguments are forwarded, e.g. run.bat -SetupOnly for an install-only check.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0run.ps1" %*
+set "EXIT_CODE=%ERRORLEVEL%"
 
 :: Keep the window open if something went wrong
-if %ERRORLEVEL% neq 0 (
+if not "%EXIT_CODE%"=="0" (
     echo.
     echo  Something went wrong. See the error above.
     pause
 )
+
+exit /b %EXIT_CODE%

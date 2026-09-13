@@ -6,6 +6,43 @@ This repository contains the source code for The Hacker Fab's open source steppe
 
 For more information about software setup, hardware assembly, or the Hacker Fab in general, please visit our [Gitbook](https://hacker-fab.gitbook.io/hacker-fab-space/fab-toolkit/patterning/lithography-stepper-v2-build-work-in-progress) or our [website](https://hackerfab.ece.cmu.edu/).
 
+---
+
+## Quick Start
+
+### Requirements
+
+- **Linux / macOS:** `curl` (pre-installed on most systems)
+- **Windows:** PowerShell 5.1+ (built in to Windows 10/11)
+- Internet connection for the first run
+
+No Python installation is needed: the launchers install `uv`, a compatible Python version, and project dependencies automatically.
+
+### Windows
+
+Double-click **`run.bat`**. It bypasses the per-user PowerShell execution policy for this launch only; you do not need to change that policy globally.
+
+To validate installation without opening the GUI, open PowerShell in this directory and run:
+
+```powershell
+.\run.ps1 -SetupOnly
+```
+
+### Linux / macOS
+
+```bash
+./run.sh
+```
+
+If needed, make the launcher executable first:
+
+```bash
+chmod +x run.sh
+./run.sh
+```
+
+---
+
 # GRBL Setup
 
 This GUI is designed to be used with an Arduino running [GRBL](https://github.com/gnea/grbl) to move the stage,

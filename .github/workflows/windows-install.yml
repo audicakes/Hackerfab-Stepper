@@ -1,0 +1,36 @@
+name: Windows installation check
+
+on:
+  push:
+    branches: [main, UI+Packaging]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows-install:
+    name: Windows x64 launcher and dependency check
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: stepper
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v6
+
+      - name: Validate PowerShell syntax
+        run: |
+          [scriptblock]::Create((Get-Content -Raw ./run.ps1)) | Out-Null
+
+      - name: Exercise the PowerShell launcher setup path
+        run: ./run.ps1 -SetupOnly
+
+      - name: Exercise the batch launcher setup path
+        shell: cmd
+        run: run.bat -SetupOnly
+
+      - name: Compile source and verify runtime imports
+        run: |
+          uv run python -m compileall -q src
+          uv run python -c "import tkinter, cv2, serial, toml, ttkbootstrap, ultralytics; print('Windows dependencies OK')"
