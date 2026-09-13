@@ -1,7 +1,6 @@
 import json
 import os
 import queue
-import shutil
 import time
 import toml
 
@@ -3025,105 +3024,158 @@ class LithographerGui:
         # serial_port.close()
 
 
+class _StartupDialog:
+    """Select a config and connected stage before opening the main GUI."""
+
+    _GRBL_VIDS = {
+        0x2341, 0x2A03, 0x239A, 0x1B4F, 0x1A86, 0x0403, 0x10C4, 0x067B,
+    }
+
+    def __init__(self, master: tkinter.Tk):
+        self.win = tkinter.Toplevel(master)
+        self.win.title("HackerFab Stepper – Setup")
+        self.win.resizable(False, False)
+        self.win.grab_set()
+
+        self.config: dict = {}
+        self.selected_port: Optional[str] = None
+        self.launched = False
+        self._port_devices: list[str] = []
+
+        frame = ttk.Frame(self.win, padding=16)
+        frame.grid(sticky="nsew")
+        ttk.Label(frame, text="HackerFab Stepper", font=("Arial", 20, "bold")).grid(
+            row=0, column=0, columnspan=3, sticky="w")
+        ttk.Label(frame, text="Use the bundled default configuration, or browse for another TOML file.").grid(
+            row=1, column=0, columnspan=3, sticky="w", pady=(0, 12))
+
+        ttk.Label(frame, text="Config file:").grid(row=2, column=0, sticky="e", padx=(0, 8), pady=4)
+        self._config_var = StringVar(value="default.toml")
+        ttk.Entry(frame, textvariable=self._config_var, width=44).grid(
+            row=2, column=1, sticky="ew", pady=4)
+        ttk.Button(frame, text="Browse…", command=self._browse).grid(
+            row=2, column=2, padx=(8, 0), pady=4)
+
+        ttk.Label(frame, text="Stage port:").grid(row=3, column=0, sticky="e", padx=(0, 8), pady=4)
+        self._port_var = StringVar(value="Scanning…")
+        self._combo = ttk.Combobox(frame, textvariable=self._port_var, state="readonly", width=44)
+        self._combo.grid(row=3, column=1, sticky="ew", pady=4)
+        ttk.Button(frame, text="Refresh", command=self._scan_ports).grid(
+            row=3, column=2, padx=(8, 0), pady=4)
+
+        self._status_var = StringVar()
+        ttk.Label(frame, textvariable=self._status_var).grid(
+            row=4, column=0, columnspan=3, sticky="w", pady=(2, 10))
+        ttk.Button(frame, text="Cancel", command=self.win.destroy).grid(row=5, column=1, sticky="e", padx=(0, 8))
+        ttk.Button(frame, text="Launch", command=self._launch).grid(row=5, column=2, sticky="e")
+        frame.columnconfigure(1, weight=1)
+
+        self.win.after(50, self._scan_ports)
+
+    def _browse(self) -> None:
+        path = filedialog.askopenfilename(
+            parent=self.win,
+            title="Select configuration file",
+            filetypes=[("TOML files", "*.toml"), ("All files", "*.*")],
+        )
+        if path:
+            self._config_var.set(path)
+
+    def _scan_ports(self) -> None:
+        from serial.tools import list_ports
+
+        ports = list_ports.comports()
+        grbl = [port for port in ports if (port.vid or 0) in self._GRBL_VIDS]
+        entries = [(port.device, f"{port.device} — {port.description}") for port in grbl]
+        entries.append(("none", "No stage (run without hardware)"))
+        self._port_devices = [device for device, _ in entries]
+        self._combo["values"] = [label for _, label in entries]
+
+        if grbl:
+            self._combo.current(0)
+            self._status_var.set(f"Detected {grbl[0].description}")
+        else:
+            self._combo.current(len(entries) - 1)
+            self._status_var.set("No GRBL board detected. Connect one and click Refresh, or launch without a stage.")
+
+    def _launch(self) -> None:
+        path = self._config_var.get().strip()
+        try:
+            with open(path, "r") as file:
+                self.config = toml.load(file)
+        except Exception as error:
+            messagebox.showerror("Config error", f"Could not open {path}:\n{error}", parent=self.win)
+            return
+
+        index = self._combo.current()
+        self.selected_port = self._port_devices[index] if index >= 0 else None
+        self.launched = True
+        self.win.destroy()
+
+    def run(self) -> bool:
+        self.win.wait_window()
+        return self.launched
+
+
 def main():
+    startup_root = tkinter.Tk()
+    startup_root.withdraw()
+    dialog = _StartupDialog(startup_root)
+    if not dialog.run():
+        startup_root.destroy()
+        return
 
-    # Open a file selector window
-    config_win = tkinter.Tk()
-    config_win.withdraw()
-    ftypes = [('all files', '.*'), ('toml files', '.toml')]
+    config = dialog.config
+    startup_root.destroy()
 
-    # Window to prompt user to select a toml configuration file
-    # Note: this assumes that the current working directory has all the possible toml files
-    config_path = filedialog.askopenfilename(title="Select a config file (default is default.toml)",
-                                    filetypes=ftypes)
-    print(f"Selected configuration: {config_path}")
-
-    try:
-        with open(config_path, "r") as f:
-            config = toml.load(f)
-    except FileNotFoundError:
-        print("config.toml does not exist, copying settings from default.toml")
-        shutil.copy("default.toml", config_path)
-        with open(config_path, "r") as f:
-            config = toml.load(f)
-
-    # STAGE CONFIG
-    config_win.destroy()
-    stage_config = config["stage"]
-    if stage_config["enabled"]:
-        serial_port = serial.Serial(stage_config["port"], stage_config["baud-rate"])
-        print(f"Using serial port {serial_port.name}")
-        stage = GrblStage(serial_port, stage_config["homing"])
+    stage_config = config.get("stage", {})
+    if stage_config.get("enabled", True) and dialog.selected_port not in (None, "none"):
+        try:
+            serial_port = serial.Serial(dialog.selected_port, stage_config.get("baud-rate", 115200))
+            stage = GrblStage(serial_port, stage_config.get("homing", False))
+            print(f"Using serial port {serial_port.name}")
+        except Exception as error:
+            print(f"Stage connection failed ({dialog.selected_port}): {error}")
+            stage = StageController()
     else:
         stage = StageController()
 
-    # CAMERA CONFIG
-
-    camera_config = config["camera"]
-    
-    if camera_config["type"] == "webcam":
-        try:
-            index = int(camera_config["index"])
-        except Exception:
-            index = 0
-        camera = Webcam(index)
-    elif camera_config["type"] == "flir":
+    camera_config = config.get("camera", {})
+    camera_type = camera_config.get("type", "none")
+    if camera_type == "webcam":
+        camera = Webcam(int(camera_config.get("index", 0)))
+    elif camera_type == "flir":
         import camera.flir.flir_camera as flir
         camera = flir.FlirCamera()
-    elif camera_config["type"] in ("basler", "pylon"):
+    elif camera_type in ("basler", "pylon"):
         from camera.pylon import BaslerPylon
-        try:
-            index = int(camera_config["index"])
-        except Exception:
-            index = 0
-        camera = BaslerPylon(index)
-    elif camera_config["type"] == "none":
+        camera = BaslerPylon(int(camera_config.get("index", 0)))
+    elif camera_type == "none":
         camera = None
     else:
-        print(f"config.toml specifies invalid camera type {camera_config['type']}")
-        return 1
+        print(f"Unknown camera type '{camera_type}' — camera disabled")
+        camera = None
 
-    camera_scale = float(camera_config.get("gui-scale", 1.0))
-    red_exposure = float(camera_config.get("red-exposure", DEFAULT_RED_EXPOSURE))
-    uv_exposure = float(camera_config.get("uv-exposure", DEFAULT_UV_EXPOSURE))
-    
-    # ALIGNMENT CONFIG
-
-    alignment_config = config["alignment"]
-    alignment_enabled = alignment_config.get("enabled", False)
-    alignment_model = alignment_config.get("model_path", "ckpts/best.pt")
-    
-    # Get alignment marker reference coordinates with defaults
-    right_marker_x = float(alignment_config.get("right_marker_x", 1820.0))
-    left_marker_x = float(alignment_config.get("left_marker_x", 280.0))
-    top_marker_y = float(alignment_config.get("top_marker_y", 269.0))
-    bottom_marker_y = float(alignment_config.get("bottom_marker_y", 1075.0))
-    
-    # Get scaling factors with defaults
-    x_scale_factor = float(alignment_config.get("x_scale_factor", -1100))
-    y_scale_factor = float(alignment_config.get("y_scale_factor", 800))
-    
+    alignment = config.get("alignment", {})
     alignment_config = AlignmentConfig(
-        enabled=alignment_enabled,
-        model_path=alignment_model,
-        right_marker_x=right_marker_x,
-        left_marker_x=left_marker_x,
-        top_marker_y=top_marker_y,
-        bottom_marker_y=bottom_marker_y,
-        x_scale_factor=x_scale_factor,
-        y_scale_factor=y_scale_factor,
+        enabled=alignment.get("enabled", False),
+        model_path=alignment.get("model_path", "ckpts/best.pt"),
+        right_marker_x=float(alignment.get("right_marker_x", 1820.0)),
+        left_marker_x=float(alignment.get("left_marker_x", 280.0)),
+        top_marker_y=float(alignment.get("top_marker_y", 269.0)),
+        bottom_marker_y=float(alignment.get("bottom_marker_y", 1075.0)),
+        x_scale_factor=float(alignment.get("x_scale_factor", -1100)),
+        y_scale_factor=float(alignment.get("y_scale_factor", 800)),
     )
-    
-    lithographer_config = LithographerConfig(
+
+    lithographer = LithographerGui(LithographerConfig(
         stage,
         camera,
-        camera_scale,
-        red_exposure,
-        uv_exposure,
+        float(camera_config.get("gui-scale", 1.0)),
+        float(camera_config.get("red-exposure", DEFAULT_RED_EXPOSURE)),
+        float(camera_config.get("uv-exposure", DEFAULT_UV_EXPOSURE)),
         alignment_config,
-    )
-
-    lithographer = LithographerGui(lithographer_config)
+    ))
     lithographer.root.mainloop()
 
 

@@ -44,4 +44,4 @@ chmod +x run.sh
 - Review [`stepper/default.toml`](stepper/default.toml), especially the camera index and stage settings.
 - The default stage port is `"auto"`, which scans for a compatible connected controller. Set an explicit path such as `/dev/ttyACM0` or `COM3` only when needed.
 
-The setup dialog shown at launch lets you choose a TOML configuration file and a detected stage port.
+The setup dialog opens with `default.toml` already selected. Leave it selected and click **Launch** for the normal first run; use **Browse** only for a custom TOML configuration. It also lets you select a detected stage port or run without hardware.
