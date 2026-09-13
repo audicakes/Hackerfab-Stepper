@@ -45,3 +45,5 @@ chmod +x run.sh
 - The default stage port is `"auto"`, which scans for a compatible connected controller. Set an explicit path such as `/dev/ttyACM0` or `COM3` only when needed.
 
 The setup dialog opens with `default.toml` already selected. Leave it selected and click **Launch** for the normal first run; use **Browse** only for a custom TOML configuration. It also lets you select a detected stage port or run without hardware.
+
+If the application UI is still too small on a high-resolution display, launch it with `HACKERFAB_UI_SCALE=1.6 ./run.sh` on Linux/macOS, or set the `HACKERFAB_UI_SCALE` environment variable before running `run.bat` on Windows.

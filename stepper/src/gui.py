@@ -38,6 +38,22 @@ THUMBNAIL_SIZE: tuple[int, int] = (160, 90)
 #The values set here are not used and instead come from the config file
 DEFAULT_RED_EXPOSURE: float = 4167.0
 DEFAULT_UV_EXPOSURE: float = 25000.0
+DEFAULT_UI_SCALE: float = 1.4
+
+
+def configure_ui_scale(root: tkinter.Tk) -> None:
+    """Keep the desktop UI readable on high-resolution displays.
+
+    Set HACKERFAB_UI_SCALE (for example, to 1.6) to request a larger scale.
+    Existing system scaling is never reduced.
+    """
+    try:
+        requested_scale = float(os.environ.get("HACKERFAB_UI_SCALE", DEFAULT_UI_SCALE))
+    except ValueError:
+        requested_scale = DEFAULT_UI_SCALE
+
+    current_scale = float(root.tk.call("tk", "scaling"))
+    root.tk.call("tk", "scaling", max(current_scale, requested_scale))
 
 def compute_focus_score(camera_image, blue_only, save=False):
     camera_image = camera_image.copy()
@@ -3253,6 +3269,7 @@ def main():
     # One root window for the entire app lifetime — ttkbootstrap Style binds to it
     # and must never be destroyed and recreated.
     root = ttk.Window(themename="darkly")
+    configure_ui_scale(root)
     root.withdraw()  # stay hidden until the main UI is ready
 
     dialog = _StartupDialog(root)
