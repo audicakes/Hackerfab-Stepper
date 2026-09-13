@@ -1,22 +1,47 @@
-# Hackerfab-Stepper
+# HackerFab Stepper
 
-clone whole repo (stepper directory & everything in it) and make sure you're working in the stepper directory
+Desktop control software for the HackerFab photolithography stepper: pattern selection, stage alignment, timed UV exposure, and optional live camera preview.
 
-CODE CHANGES required in default.toml file:
+The application and its launchers live in [`stepper/`](stepper/). See the [full application guide](stepper/README.md) for GRBL setup, camera support, and configuration details.
 
-  connecting the motor:
-  1) run "ls /dev/tty.*" (no quotations) in your terminal to show all connected device names (for Mac)
-  2) connect computer to SKR PICO board via USBC cable (warning: using dongle/adapter sometimes doesn't work!)
-  3) run "ls /dev/tty.*" (no quotations) again and notice a new connected device show up (something like "/dev/tty.usbmodem3101"): copy this name!
-  4) in default.toml file: change port name to that new connected device name (line 28 with comment "CHANGE THIS!")
+## Quick Start
 
-  connecting the cam:
-  1) connect camera to computer via USBA cable (warning: using dongle/adapter sometimes doesn't work!)
-  2) in default.toml file: try changing camera index if camera isn't connected / wrong camera connected (line 11 with comment "CHANGE THIS!")
-  
-  (remember to save changes to your own local default.toml before running actual script)
-  
-RUNNING PYTHON SCRIPT: gui.py (located in src directory): connect computer to board & USB cam in setup
-  1) install required dependencies that will pop up if there's errors running the code, like pip install stuff or smtg. has to do with setting up virtual environment .venv I think. this installation guide does better job describing this part, smtg like pip install -r requirements.txt: https://docs.google.com/document/d/1YfTg02TKQj3yyqTUPdaRIhkUvofh5QlHqMsbmtyFL4I/edit?tab=t.0
-  2) pop-up will ask you to select a config file: select default.toml
-  3) follow pop-up instruction about dragging projector view window to another monitor screen? idk couldn't figure it out on Mac but camera should just be a USBA plug-and-play on windows at least
+Clone the repository, then enter the application directory:
+
+```bash
+git clone https://github.com/audicakes/Hackerfab-Stepper.git
+cd Hackerfab-Stepper/stepper
+```
+
+No separate Python installation is required. The launchers install `uv`, a compatible Python version, and the locked project dependencies on first run.
+
+### Windows
+
+Double-click `run.bat`.
+
+To validate the Windows dependency setup without opening the GUI, run this in PowerShell from the `stepper` directory:
+
+```powershell
+.\run.ps1 -SetupOnly
+```
+
+### Linux and macOS
+
+```bash
+./run.sh
+```
+
+If necessary, make it executable first:
+
+```bash
+chmod +x run.sh
+./run.sh
+```
+
+## Before First Use
+
+- Connect the USB camera and GRBL stage controller.
+- Review [`stepper/default.toml`](stepper/default.toml), especially the camera index and stage settings.
+- The default stage port is `"auto"`, which scans for a compatible connected controller. Set an explicit path such as `/dev/ttyACM0` or `COM3` only when needed.
+
+The setup dialog shown at launch lets you choose a TOML configuration file and a detected stage port.
