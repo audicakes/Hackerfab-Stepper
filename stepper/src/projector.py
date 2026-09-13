@@ -4,58 +4,55 @@ from PIL import Image, ImageTk
 
 from lib.img import image_to_tk_image
 
+# Default DLP resolution – used as the pattern canvas size before the window renders
+_DLP_W, _DLP_H = 1280, 720
+
 
 class ProjectorController:
     def show(self, image: Image.Image):
-        print("ignoring show image on dummy projector")
-        self.clear()
+        pass
 
     def size(self) -> tuple[int, int]:
-        return (1920, 1080)
+        return (_DLP_W, _DLP_H)
 
     def clear(self):
-        print("ignoring clear on dummy projector")
+        pass
+
+    def toggle_fullscreen(self):
+        pass
 
 
-# creates a fullscreen window and displays specified images to it
 class TkProjector(ProjectorController):
-    ### Internal Fields ###
     window: Toplevel
     label: Label
-
-    # just a black image to clear with
-    clear_image: ImageTk.PhotoImage
 
     def __init__(self, root: Tk, title: str = "Projector", background: str = "#000000"):
         self.window = Toplevel(root)
         self.window.title(title)
-        self.window.attributes("-fullscreen", True)
         self.window["background"] = background
+        self.window.geometry(f"{_DLP_W}x{_DLP_H}")   # start windowed — move to DLP, then fullscreen
+        self._fullscreen = False
+
         self.window.grid_rowconfigure(0, weight=1)
         self.window.grid_columnconfigure(0, weight=1)
 
-        # create projection Label
         self.label = Label(self.window, bg="black")
         self.label.grid(row=0, column=0, sticky="nesw")
 
-        # generate dummy black image
-        self.clear_image = image_to_tk_image(Image.new("L", self.size()))
+        self.clear_image = image_to_tk_image(Image.new("L", (_DLP_W, _DLP_H)))
+
+    def toggle_fullscreen(self):
+        self._fullscreen = not self._fullscreen
+        self.window.attributes("-fullscreen", self._fullscreen)
 
     def size(self) -> tuple[int, int]:
-        return (self.window.winfo_width(), self.window.winfo_height())
+        w = self.window.winfo_width()
+        h = self.window.winfo_height()
+        if w <= 1 or h <= 1:
+            return (_DLP_W, _DLP_H)
+        return (w, h)
 
-    # show an image
-    # if a duration is specified, show the image for that many milliseconds
-    # Calls update_func during patterning with a single argument from 0.0-1.0 indicating progress
     def show(self, image: Image.Image):
-        # if(self.__is_patterning__):
-        #  if(self.debug != None):
-        #    self.debug.warn("Tried to show image while another is still showing")
-        # return False
-        # warn if image isn't correct size
-        # if(image.size != fit_image(image, self.size())):
-        #  if(self.debug != None):
-        #    self.debug.warn("projecting image with incorrect size:\n  "+str(image.size)+" instead of "+str(self.size()))
         photo = image_to_tk_image(image)
         self.label.configure(image=photo)  # type:ignore
         self.photo = photo
