@@ -20,6 +20,3 @@ class StageController:
 
     def home(self):
         raise UnsupportedCommand()
-
-    def close(self):
-        pass
