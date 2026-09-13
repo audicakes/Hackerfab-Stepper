@@ -1,0 +1,28 @@
+# Python bytecode and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+ENV/
+
+# Python tooling caches and test output
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Application-generated diagnostics and captures
+aftest/
+focusred.png
+focusblue.png
+
+# Per-user editor/agent settings
+.claude/settings.local.json
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
